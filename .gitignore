@@ -6,6 +6,9 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Ignore the src/__pycache__ folder
+src/__pycache__/
+
 # Ignore virtual environment folders
 venv/
 env/
