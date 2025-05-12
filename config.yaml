@@ -1,0 +1,107 @@
+discord:
+  bot_token: "${discord_bot_token}" # Loaded from environment variable
+
+llm:
+  # Command-specific configurations - Each command defines its own LLM settings
+  commands:
+    search:
+      # Settings for the 'search' command using Perplexity
+      provider_name: "Perplexity"
+      api_key: "${perplexity_api_key}" # Loaded from environment variable
+      api_url: "https://api.perplexity.ai/chat/completions"
+      model_name: "sonar-pro"
+      system_prompt: |
+        **Role Clarification:**
+          You are an expert AI research assistant dedicated to delivering only accurate, double-checked facts sourced from reputable and trustworthy websites. Your primary objective is to provide concise, reliable answers to user queries by verifying all information with at least two independent, authoritative sources.
+
+        **Task Definition:**
+          - For every user query, conduct a targeted web search.
+          - Cross-check all key facts using a minimum of two credible and independent sources (such as major news organizations, academic journals, or official government sites).
+          - Clearly cite each source in your response, using direct URLs or recognizable source names.
+          - Summarize findings using concise bullet points.
+          - If structured data is required, present it as a labeled list (not a table), using bold labels and bullet points for each item.
+          - If a claim cannot be verified from trusted sources, state this explicitly.
+
+        **Interaction Style:**
+          - Use clear, neutral, and professional language.
+          - Present information in bullet points for easy reading.
+          - Keep responses concise but informative.
+          - Format responses for Discord using:
+            - **Bold** for headers or emphasis (`**text**`)
+            - *Italics* for subtle emphasis (`*text*`)
+            - Bullet points (`-` or `*`) for lists
+            - Block quotes (`>`) for notes, disclaimers, or disputed facts
+
+        **Contextual Boundaries:**
+          - Include only information supported by credible, double-checked sources.
+          - Do not speculate or provide unverified information.
+          - Avoid personal opinions or subjective statements.
+
+        **Output Requirements:**
+          - Start with a bolded header summarizing the topic.
+          - List main findings as bullet points.
+          - For structured data, use a labeled list format. Example:
+            **Vaccine Comparison**
+            - **Pfizer**
+              - Efficacy: 90%+
+              - Booster: Recommended
+            - **Moderna**
+              - Efficacy: 90%+
+              - Booster: Recommended
+            - **Novavax**
+              - Efficacy: ~80%
+              - Booster: Recommended
+          - List sources at the end, each on a new line, using masked links if possible, or plain URLs if not.
+          - If facts are disputed or unclear, add a brief note in a block quote.
+          - If a fact cannot be verified, respond with:
+            > Unable to verify this claim from trusted sources.
+
+        **Additional Instructions:**
+          - Always prioritize information from domains such as `.gov`, `.edu`, major news outlets, or academic publishers.
+          - If a query is ambiguous, request clarification before proceeding.
+
+    # --- Placeholder for Schedule Command LLM Config (Optional Future Use) ---
+    # schedule_parser: # Example name if using LLM to parse schedule add requests
+    #   provider_name: "Perplexity" # Or "OpenAI", etc.
+    #   api_key: "YOUR_LLM_API_KEY_FOR_THIS_COMMAND" # Use env var
+    #   api_url: "https://api.perplexity.ai/chat/completions" # Or the relevant URL
+    #   model_name: "sonar-small-online" # Potentially a faster/cheaper model
+    #   system_prompt: |
+    #     **Role:** You are a function that extracts event details from text.
+    #     **Task:** Parse the user's input to find the event summary, start time/date string, and optional duration in minutes.
+    #     **Output:** Return ONLY a JSON object with keys "summary", "start_time_str", and optionally "duration_minutes".
+    #     **Example Input:** add meeting tomorrow 3pm for 60 min
+    #     **Example Output:** {"summary": "meeting", "start_time_str": "tomorrow 3pm", "duration_minutes": 60}
+    #     **Example Input:** dentist appt April 25 9am
+    #     **Example Output:** {"summary": "dentist appt", "start_time_str": "April 25 9am"}
+    #     **If unparseable:** {"error": "Could not parse input."}
+
+    # --- Placeholder for another command using a different provider ---
+    # summarize: # Hypothetical command
+    #   provider_name: "OpenAI"
+    #   api_key: "YOUR_OPENAI_API_KEY" # Use env var
+    #   api_url: "https://api.openai.com/v1/chat/completions"
+    #   model_name: "gpt-4o-mini"
+    #   system_prompt: |
+    #     You are a helpful assistant that summarizes text concisely.
+    #     Focus on the main points and keep the summary under 100 words.
+
+# --- Google Calendar API Credentials (OAuth 2.0 Client) ---
+google_calendar:
+  # From your credentials.json (or Google Cloud Console)
+  client_id: "${google_client_id}" # Loaded from environment variable
+  client_secret: "${google_client_secret}" # Loaded from environment variable
+  project_id: "nova-457308" # Often included in credentials.json
+  auth_uri: "https://accounts.google.com/o/oauth2/auth" # Standard
+  token_uri: "https://oauth2.googleapis.com/token" # Standard
+  auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs" # Standard
+  redirect_uris: ["http://localhost/"] # Or whatever you configured
+
+  # --- Obtained after first authorization ---
+  # This refresh token allows getting new access tokens without user interaction
+  refresh_token: "${google_refresh_token}" # Loaded from environment variable
+
+# --- User Settings ---
+user_settings:
+  notify_channel_id: 1363111689184084041 # ID of the channel for daily summaries
+  daily_summary_time: "08:00" # Time in HH:MM (24-hour format) in local timezone
