@@ -26,7 +26,9 @@ def load_config():
     global NOTIFY_CHANNEL_ID, DAILY_SUMMARY_TIME_STR, DAILY_SUMMARY_TIME_OBJ
     global GOOGLE_CALENDAR_CONFIG # ADDED
 
-    with open("config.yaml", "r") as file:
+    # Get the absolute path to the config.yaml file
+    config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.yaml')
+    with open(config_path, "r") as file:
         CONFIG = yaml.safe_load(file)
 
     # Replace sensitive placeholders with values from environment variables
