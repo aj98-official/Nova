@@ -242,6 +242,18 @@ class ScheduleCog(commands.Cog):
             logger.error(f"ScheduleCog: Unexpected error in schedule remove command: {e}", exc_info=True)
             await ctx.send("An unexpected error occurred while removing the event.")
 
+    @schedule.command(name="help", help="Lists all available subcommands under the schedule command.")
+    async def schedule_help(self, ctx):
+        """Provides help for the schedule command group."""
+        help_text = (
+            "**Schedule Commands:**\n"
+            "`!schedule view [day]` - Show schedule for today or a specific day (e.g., 'tomorrow', 'monday', 'April 25').\n"
+            "`!schedule add \"<event title>\" <time/datetime> [duration_minutes]` - Add an event (e.g., `!schedule add \"Meeting\" \"3pm\" 60`).\n"
+            "`!schedule remove <ID>` - Remove an event using the ID number shown by `!schedule view`.\n"
+            "`!schedule help` - Lists all available subcommands under the schedule command."
+        )
+        await ctx.send(help_text)
+
 
 async def setup(bot, calendar_service=None):
     """Allows the cog to be loaded by the bot, passing the calendar service."""
