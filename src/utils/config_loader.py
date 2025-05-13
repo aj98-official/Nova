@@ -7,8 +7,11 @@ from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables from .env file with override enabled
+load_dotenv(override=True)
+
+# Debugging: Print the loaded Perplexity API Key
+logger.debug(f"Loaded Perplexity API Key: {os.getenv('perplexity_api_key')}")
 
 # --- Global variables to store loaded config ---
 CONFIG = {}
@@ -19,6 +22,20 @@ NOTIFY_CHANNEL_ID = None
 DAILY_SUMMARY_TIME_STR = "08:00" # Default
 DAILY_SUMMARY_TIME_OBJ = None
 GOOGLE_CALENDAR_CONFIG = {} # ADDED: To store google config section
+
+def replace_env_variables(config):
+    """Recursively replaces ${var} placeholders in the config with environment variable values."""
+    if isinstance(config, dict):
+        return {key: replace_env_variables(value) for key, value in config.items()}
+    elif isinstance(config, list):
+        return [replace_env_variables(item) for item in config]
+    elif isinstance(config, str) and config.startswith("${") and config.endswith("}"):
+        env_var = config[2:-1]  # Extract the environment variable name 
+        # Check if the environment variable is set
+        if os.getenv(env_var) is None:
+            logger.warning(f"Environment variable {env_var} not set. Keeping placeholder {config}.")
+        return os.getenv(env_var, config)  # Replace with env value or keep placeholder
+    return config
 
 def load_config():
     """Loads configuration from environment variables and config.yaml."""
@@ -31,13 +48,8 @@ def load_config():
     with open(config_path, "r") as file:
         CONFIG = yaml.safe_load(file)
 
-    # Replace sensitive placeholders with values from environment variables
-    for section, values in CONFIG.items():
-        if isinstance(values, dict):
-            for key, value in values.items():
-                if isinstance(value, str) and value.startswith("${") and value.endswith("}"):
-                    env_var = value[2:-1]  # Extract the environment variable name
-                    CONFIG[section][key] = os.getenv(env_var, value)  # Replace with env value or keep placeholder
+    # Replace all ${var} placeholders in the config with environment variable values
+    CONFIG = replace_env_variables(CONFIG)
 
     BOT_TOKEN = CONFIG.get('discord', {}).get('bot_token')
     LLM_COMMAND_CONFIGS = CONFIG.get('llm', {}).get('commands', {})
