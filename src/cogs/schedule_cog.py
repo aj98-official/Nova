@@ -126,7 +126,7 @@ class ScheduleCog(commands.Cog):
         help_text = (
             "**Schedule Commands:**\n"
             "`!schedule view [day]` - Show schedule for today or a specific day (e.g., 'tomorrow', 'monday', 'April 25').\n"
-            "`!schedule add \"<event title>\" <time/datetime> [duration_minutes]` - Add an event (e.g., `!schedule add \"Meeting\" \"3pm\" 60`).\n"
+            "`!schedule add \"<event title>\" <time/datetime> [duration_minutes]` - Add an event (e.g., `!schedule add \"Meeting\" \"today 3pm\" 60`).\n"
             "`!schedule remove <ID>` - Remove an event using the ID number shown by `!schedule view`."
         )
         await ctx.send(help_text)
@@ -159,7 +159,7 @@ class ScheduleCog(commands.Cog):
         self.last_viewed_events[ctx.author.id] = events_details # Store in cog instance state
         await send_long_message(ctx, summary_text)
 
-    @schedule.command(name="add", help="Adds event. Ex: !schedule add \"Meeting\" \"3pm\" 60")
+    @schedule.command(name="add", help="Adds event. Ex: !schedule add \"Meeting\" \"today 3pm\" 60 or !schedule add \"Call\" \"tomorrow 10am\" 30")
     async def schedule_add(self, ctx, summary: str, time_str: str, duration_minutes: int = 60):
         """Adds an event to Google Calendar."""
         logger.info(f"ScheduleCog: Received schedule add request from {ctx.author}: {summary}, {time_str}, {duration_minutes}")
@@ -168,7 +168,53 @@ class ScheduleCog(commands.Cog):
             return
 
         try:
-            start_dt = parser.parse(time_str)
+            import re
+            
+            # Strategy: Try to separate date and time components
+            # Look for relative date words first
+            relative_words = ['today', 'tomorrow', 'yesterday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+            
+            # Check if the string contains relative date words
+            time_str_lower = time_str.lower()
+            found_relative = None
+            for word in relative_words:
+                if word in time_str_lower:
+                    found_relative = word
+                    break
+            
+            if found_relative:
+                # Parse the relative date part
+                parsed_date = parse_relative_date(found_relative)
+                
+                if parsed_date:
+                    # Extract time from the remaining part of the string
+                    time_pattern = r'\b(\d{1,2})(:\d{2})?\s*(am|pm|AM|PM)?\b'
+                    time_match = re.search(time_pattern, time_str_lower)
+                    
+                    if time_match:
+                        # Extract time and combine with the parsed date
+                        hour = int(time_match.group(1))
+                        minute = int(time_match.group(2)[1:]) if time_match.group(2) else 0
+                        am_pm = time_match.group(3).lower() if time_match.group(3) else None
+                        
+                        # Convert to 24-hour format if needed
+                        if am_pm == 'pm' and hour != 12:
+                            hour += 12
+                        elif am_pm == 'am' and hour == 12:
+                            hour = 0
+                        
+                        start_dt = datetime.datetime.combine(parsed_date, datetime.time(hour, minute))
+                    else:
+                        # No time specified, default to a reasonable time (9 AM)
+                        start_dt = datetime.datetime.combine(parsed_date, datetime.time(9, 0))
+                else:
+                    # Fallback if relative parsing failed
+                    start_dt = parser.parse(time_str)
+            else:
+                # No relative date found, try standard parsing
+                start_dt = parser.parse(time_str)
+            
+            # Ensure timezone is set
             local_tz = tz.tzlocal()
             if start_dt.tzinfo is None:
                 start_dt = start_dt.replace(tzinfo=local_tz)
@@ -193,7 +239,11 @@ class ScheduleCog(commands.Cog):
 
         except parser.ParserError:
             logger.warning(f"ScheduleCog: Failed to parse time string: {time_str}")
-            await ctx.send(f"Error: Could not understand the time '{time_str}'. Please use formats like '3pm', '15:00', 'tomorrow 10am', '2025-04-20 14:30'.")
+            await ctx.send(f"Error: Could not understand the time '{time_str}'. Please use formats like:\n"
+                          f"• **Relative dates with time**: 'today 3pm', 'tomorrow 10am', 'monday 2:30pm'\n"
+                          f"• **Just relative dates**: 'today', 'tomorrow' (defaults to 9am)\n"
+                          f"• **Absolute times**: '3pm', '15:00', '2:30pm'\n"
+                          f"• **Full datetime**: '2025-06-07 14:30', 'June 7 3pm'")
         except ValueError as ve:
             logger.warning(f"ScheduleCog: Value error during parsing or calculation: {ve}")
             await ctx.send(f"Error processing time or duration. Please check your input: {ve}")
@@ -248,7 +298,7 @@ class ScheduleCog(commands.Cog):
         help_text = (
             "**Schedule Commands:**\n"
             "`!schedule view [day]` - Show schedule for today or a specific day (e.g., 'tomorrow', 'monday', 'April 25').\n"
-            "`!schedule add \"<event title>\" <time/datetime> [duration_minutes]` - Add an event (e.g., `!schedule add \"Meeting\" \"3pm\" 60`).\n"
+            "`!schedule add \"<event title>\" <time/datetime> [duration_minutes]` - Add an event (e.g., `!schedule add \"Meeting\" \"today 3pm\" 60`).\n"
             "`!schedule remove <ID>` - Remove an event using the ID number shown by `!schedule view`.\n"
             "`!schedule help` - Lists all available subcommands under the schedule command."
         )

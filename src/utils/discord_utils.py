@@ -1,41 +1,39 @@
-import discord # Add discord import
-import asyncio # Add asyncio import
+import discord
+import asyncio
 
-async def send_long_message(ctx: discord.ext.commands.Context, text: str, prefix: str = ""):
-    """Sends a potentially long message by splitting it into chunks."""
+async def send_long_message(ctx, text: str, prefix: str = ""):
+    """Sends a potentially long message by splitting it into chunks of <=2000 chars."""
     MAX_LENGTH = 2000
-    current_pos = 0
-    first_message = True
 
-    while current_pos < len(text):
-        message_prefix = prefix if first_message else ""
-        # Calculate remaining space in the chunk, accounting for the prefix
-        remaining_space = MAX_LENGTH - len(message_prefix)
+    if not text:
+        return
 
-        # Determine the end position for the current chunk
-        end_pos = current_pos + remaining_space
-        # Ensure we don't exceed the text length
-        end_pos = min(end_pos, len(text))
+    # Prepend prefix to the text
+    if prefix:
+        text = prefix + text
 
-        # Find the last newline or space within the chunk to avoid splitting mid-word/sentence if possible
-        split_pos = text.rfind('\n', current_pos, end_pos)
-        if split_pos == -1 or split_pos <= current_pos:
-             split_pos = text.rfind(' ', current_pos, end_pos)
-             if split_pos == -1 or split_pos <= current_pos:
-                  split_pos = end_pos
+    # If it fits in one message, just send it
+    if len(text) <= MAX_LENGTH:
+        await ctx.send(text)
+        return
 
-        # Extract the chunk
-        chunk = text[current_pos:split_pos].strip()
-        if not chunk:
-            chunk = text[current_pos:end_pos]
+    while text:
+        if len(text) <= MAX_LENGTH:
+            await ctx.send(text)
+            break
 
-        # Send the chunk
-        if chunk:
-            await ctx.send(f"{message_prefix}{chunk}")
+        # Try to split at last newline within limit
+        split_pos = text.rfind('\n', 0, MAX_LENGTH)
+        if split_pos <= 0:
+            # Try to split at last space within limit
+            split_pos = text.rfind(' ', 0, MAX_LENGTH)
+        if split_pos <= 0:
+            # Hard split at limit
+            split_pos = MAX_LENGTH
 
-        # Update position for the next chunk
-        current_pos = split_pos if chunk == text[current_pos:split_pos].strip() else end_pos
+        chunk = text[:split_pos]
+        text = text[split_pos:].lstrip('\n')  # Remove leading newline from remainder
 
-        first_message = False
-        # Optional: Add a small delay
-        # await asyncio.sleep(0.1)
+        if chunk.strip():
+            await ctx.send(chunk)
+            await asyncio.sleep(0.3)  # Small delay to avoid rate limits

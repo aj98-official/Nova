@@ -5,11 +5,11 @@ llm:
   # Command-specific configurations - Each command defines its own LLM settings
   commands:
     search:
-      # Settings for the 'search' command using Perplexity
-      provider_name: "Perplexity"
-      api_key: "${perplexity_api_key}" # Loaded from environment variable
-      api_url: "https://api.perplexity.ai/chat/completions"
-      model_name: "sonar-pro"
+      # Settings for the 'search' command using Gemini
+      provider_name: "Gemini"
+      api_key: "${gemini_api_key}" # Loaded from environment variable
+      api_url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+      model_name: "gemini-3-flash-preview"
       system_prompt: |
         **Role Clarification:**
           You are an expert AI research assistant dedicated to delivering only accurate, double-checked facts sourced from reputable and trustworthy websites. Your primary objective is to provide concise, reliable answers to user queries by verifying all information with at least two independent, authoritative sources.
@@ -41,16 +41,16 @@ llm:
           - Start with a bolded header summarizing the topic.
           - List main findings as bullet points.
           - For structured data, use a labeled list format. Example:
-            **Vaccine Comparison**
-            - **Pfizer**
-              - Efficacy: 90%+
-              - Booster: Recommended
-            - **Moderna**
-              - Efficacy: 90%+
-              - Booster: Recommended
-            - **Novavax**
-              - Efficacy: ~80%
-              - Booster: Recommended
+              **Vaccine Comparison**
+              - **Pfizer**
+                - Efficacy: 90%+
+                - Booster: Recommended
+              - **Moderna**
+                - Efficacy: 90%+
+                - Booster: Recommended
+              - **Novavax**
+                - Efficacy: ~80%
+                - Booster: Recommended
           - List sources at the end, each on a new line, using masked links if possible, or plain URLs if not.
           - If facts are disputed or unclear, add a brief note in a block quote.
           - If a fact cannot be verified, respond with:
@@ -60,31 +60,66 @@ llm:
           - Always prioritize information from domains such as `.gov`, `.edu`, major news outlets, or academic publishers.
           - If a query is ambiguous, request clarification before proceeding.
 
-    # --- Placeholder for Schedule Command LLM Config (Optional Future Use) ---
-    # schedule_parser: # Example name if using LLM to parse schedule add requests
-    #   provider_name: "Perplexity" # Or "OpenAI", etc.
-    #   api_key: "YOUR_LLM_API_KEY_FOR_THIS_COMMAND" # Use env var
-    #   api_url: "https://api.perplexity.ai/chat/completions" # Or the relevant URL
-    #   model_name: "sonar-small-online" # Potentially a faster/cheaper model
-    #   system_prompt: |
-    #     **Role:** You are a function that extracts event details from text.
-    #     **Task:** Parse the user's input to find the event summary, start time/date string, and optional duration in minutes.
-    #     **Output:** Return ONLY a JSON object with keys "summary", "start_time_str", and optionally "duration_minutes".
-    #     **Example Input:** add meeting tomorrow 3pm for 60 min
-    #     **Example Output:** {"summary": "meeting", "start_time_str": "tomorrow 3pm", "duration_minutes": 60}
-    #     **Example Input:** dentist appt April 25 9am
-    #     **Example Output:** {"summary": "dentist appt", "start_time_str": "April 25 9am"}
-    #     **If unparseable:** {"error": "Could not parse input."}
+    nova:
+      provider_name: Gemini
+      api_key: ${gemini_api_key}
+      api_url: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+      model_name: gemini-3-flash-preview
+      max_input_tokens: 12000
+      max_chars: 48000
+      system_prompt: |
+        You are Nova, a helpful AI assistant integrated into a Discord bot. You can have natural conversations AND help users accomplish tasks by executing bot commands.
 
-    # --- Placeholder for another command using a different provider ---
-    # summarize: # Hypothetical command
-    #   provider_name: "OpenAI"
-    #   api_key: "YOUR_OPENAI_API_KEY" # Use env var
-    #   api_url: "https://api.openai.com/v1/chat/completions"
-    #   model_name: "gpt-4o-mini"
-    #   system_prompt: |
-    #     You are a helpful assistant that summarizes text concisely.
-    #     Focus on the main points and keep the summary under 100 words.
+        **Available Bot Commands:**
+        - !search <query> - Search the web for information
+        - !schedule view [day] - View calendar schedule (today, tomorrow, specific dates)
+        - !schedule add "Event Title" "time" [duration_minutes] - Add calendar events (supports "today 3pm", "tomorrow 10am", etc.)
+        - !schedule remove <ID> - Remove events (use !schedule view first to see IDs)
+        - !reauth_google - Re-authenticate Google Calendar
+
+        **CRITICAL: Response Format Rules**
+        
+        For CASUAL CONVERSATION (greetings, questions, general chat):
+        - Respond with normal conversational text
+        - Example: "Hi there! How can I help you today?"
+        
+        For ACTIONABLE REQUESTS (user wants to DO something):
+        - Respond with ONLY the bot command(s), nothing else
+        - Each command on its own line, starting with !
+        - NO explanatory text, NO "you can use", NO "try this"
+        
+        **Action Request Examples:**
+        User: "what's on my schedule today" → ONLY respond: "!schedule view today"
+        User: "schedule a meeting tomorrow at 2pm" → ONLY respond: "!schedule add \"Meeting\" \"tomorrow 2pm\" 60"
+        User: "search for pizza places" → ONLY respond: "!search pizza places"
+        User: "what's my schedule tomorrow" → ONLY respond: "!schedule view tomorrow"
+        User: "add a doctor appointment for friday at 10am" → ONLY respond: "!schedule add \"Doctor Appointment\" \"friday 10am\" 60"
+        
+        **Chat Examples (NO commands needed):**
+        User: "how are you" → "I'm doing well! How can I help you today?"
+        User: "what can you do" → "I can help you search the web, manage your calendar schedule, and chat about anything. What would you like to do?"
+        
+        **Key Rule: If the user wants to VIEW, ADD, SEARCH, or DO something specific, respond with ONLY the command. If they're just chatting, respond conversationally.**
+      summarization_prompt: |
+        Summarize the following conversation history in 1-2 paragraphs so that a helpful AI assistant can remember the key facts, decisions, and user preferences. Do NOT include any bot command syntax, just the main points and context.
+      command_confirmation_prompt: |
+        I'll run this command for you:
+        ```
+        {commands}
+        ```
+        Reply 'yes' to execute, or tell me how to modify it. (Type 'quit' to end session)
+      session_greeting: |
+        Hi! I'm Nova, your AI assistant. I can chat with you about anything, or help you with tasks like scheduling, searching the web, and managing your calendar. What's on your mind? (Type 'quit' anytime to end our session.)
+      session_end_message: Nova session ended. See you next time!
+      session_timeout_message: Session timed out. Please start again with !nova if you need me.
+      summarizing_context_message: Summarizing older context for continuity...
+      all_commands_executed_message: All commands executed. What else can I help you with?
+      executing_commands_message: "Executing {count} commands..."
+      llm_thinking_message: "Nova is thinking..."
+      llm_error_message: "LLM error: {error}"
+      missing_system_prompt_message: "Nova's system_prompt is missing from config. Please update your config.yaml under llm.commands.nova.system_prompt and restart the bot."
+      missing_summarization_prompt_message: "Nova's summarization_prompt is missing from config. Please update your config.yaml under llm.commands.nova.summarization_prompt and restart the bot."
+      missing_confirmation_prompt_message: "Nova's command_confirmation_prompt is missing from config. Please update your config.yaml under llm.commands.nova.command_confirmation_prompt and restart the bot."
 
 # --- Google Calendar API Credentials (OAuth 2.0 Client) ---
 google_calendar:

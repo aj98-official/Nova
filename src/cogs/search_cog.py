@@ -45,20 +45,16 @@ class SearchCog(commands.Cog):
 
         await ctx.send(f"Asking {provider_name} ({model_name}): '{query}'...")
 
-        loop = asyncio.get_running_loop()
         try:
-            api_response = await loop.run_in_executor(
-                None,
-                lambda: asyncio.run(get_llm_response(
-                    api_key,
-                    api_url,
-                    model_name,
-                    system_prompt,
-                    query
-                ))
+            api_response = await get_llm_response(
+                api_key,
+                api_url,
+                model_name,
+                system_prompt,
+                query
             )
         except Exception as e:
-            logger.error(f"SearchCog: Error calling get_llm_response via executor: {e}")
+            logger.error(f"SearchCog: Error calling get_llm_response: {e}")
             await ctx.send("Sorry, an error occurred while contacting the LLM.")
             return
 
